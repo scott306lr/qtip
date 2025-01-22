@@ -1,6 +1,6 @@
 import multiprocessing as mp
 
-import glog
+import logging
 import torch
 from datasets import load_dataset
 from torch.utils.data import DataLoader, Dataset
@@ -333,7 +333,7 @@ class SimpleDataset(Dataset):
 
 def split_data(X, Y, args):
     split = int(len(X) - args.ft_valid_size)
-    glog.info(f'using {split} training seqs, {len(X) - split} validation seqs')
+    logging.info(f'using {split} training seqs, {len(X) - split} validation seqs')
     train_ds = SimpleDataset(X[:split], Y[:split])
     valid_ds = SimpleDataset(X[split:], Y[split:])
     train_dl = DataLoader(train_ds,

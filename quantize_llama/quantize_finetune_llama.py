@@ -2,7 +2,7 @@ import argparse
 import os
 import time
 
-import glog
+import logging
 
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:512'
 
@@ -131,11 +131,11 @@ def main(args):
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
     tokenizer.pad_token = tokenizer.eos_token
-    glog.info('loaded model')
+    logging.info('loaded model')
 
     devset = utils.sample_rp1t(tokenizer, args.devset_size, args.ctx_size,
                                args.sample_proc)
-    glog.info('loaded dataset and devset')
+    logging.info('loaded dataset and devset')
 
     nproc = torch.cuda.device_count()
     orig_emb_cache = [model.model.embed_tokens(devset)]
@@ -155,7 +155,7 @@ def main(args):
     cur_device = 0
     proc_list = [None for _ in range(nproc)]
     for i in range(len(model.model.layers)):
-        glog.info(f'layer {i} gpu {cur_device}')
+        logging.info(f'layer {i} gpu {cur_device}')
         if proc_list[cur_device] is not None:
             proc_list[cur_device][0].join()
             model.model.layers[proc_list[cur_device][1]] = None
@@ -182,7 +182,7 @@ def main(args):
         position_ids = position_ids.cpu()
         attention_mask = attention_mask.cpu()
         utils.clean()
-        glog.info('computed original embedding for layer {} in {}s'.format(i, time.time() - st))
+        logging.info('computed original embedding for layer {} in {}s'.format(i, time.time() - st))
 
         proc_list[cur_device] = (mp.Process(target=quantize_llama_decoder,
                                             args=(

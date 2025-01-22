@@ -10,15 +10,14 @@ from tqdm import tqdm
 
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:512'
 
-import glog
+import logging
 import torch
 import torch.multiprocessing as mp
 from accelerate import infer_auto_device_map, init_empty_weights
 from torch import nn, optim
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from transformers.modeling_attn_mask_utils import \
-    _prepare_4d_causal_attention_mask
+from transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask
 
 from lib import codebook, utils
 from lib.algo import finetune
@@ -99,7 +98,7 @@ def main(args):
                 module.tlut.requires_grad = True
             if args.ft_train_lut:
                 module.mode = 'train-recons'
-                glog.info('overriding ft_prefetch_trellis')
+                logging.info('overriding ft_prefetch_trellis')
             elif args.ft_prefetch_trellis:
                 module.mode = 'train-fixW'
             else:

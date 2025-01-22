@@ -1,11 +1,7 @@
 import argparse
-import json
-import math
-import os
 import random
 
-import datasets
-import glog
+import logging
 import torch
 from tqdm import tqdm
 
@@ -62,7 +58,7 @@ def main(args):
         avg_loss = acc_loss / nsamples
 
         ppl = torch.exp(torch.tensor(avg_loss)).item()
-        glog.info(f'{dataset} perplexity: {ppl}')
+        logging.info(f'{dataset} perplexity: {ppl}')
 
 
 if __name__ == '__main__':

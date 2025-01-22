@@ -1,10 +1,8 @@
 import argparse
-import json
 import os
 import random
 
-import datasets
-import glog
+import logging
 import torch
 from lm_eval import evaluator, tasks
 from lm_eval.models.huggingface import HFLM
@@ -41,7 +39,7 @@ def main(args):
 
     tokenizer = AutoTokenizer.from_pretrained(model_str)
 
-    glog.info('loaded model!')
+    logging.info('loaded model!')
     tokenizer.pad_token = tokenizer.eos_token
 
     task_names = args.tasks.split(",")

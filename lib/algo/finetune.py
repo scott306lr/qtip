@@ -6,14 +6,14 @@ import math
 from contextlib import contextmanager
 from operator import attrgetter
 
-import glog
+import logging
 import torch
 from torch import multiprocessing as mp
 from torch import nn
 from transformers import AutoModelForCausalLM
 
-from lib import codebook, utils
-from lib.linear import QuantizedLinear
+from .. import codebook, utils
+from ..linear import QuantizedLinear
 
 from . import ldlq
 
@@ -42,7 +42,7 @@ def finetune_decoder_layer(layer, name, device, train_dl, valid_dl, orig_dtype,
 
         optim = torch.optim.Adam(layer.parameters(), lr=args.ft_lr)
         best_loss = utils.calculate_mse_loss(layer, valid_dl, device)
-        glog.info(f'layer {name} initial loss {best_loss}')
+        logging.info(f'layer {name} initial loss {best_loss}')
         scaler = torch.cuda.amp.GradScaler(enabled=(orig_dtype==torch.float16))
         worse_ct = 0
 
@@ -65,7 +65,7 @@ def finetune_decoder_layer(layer, name, device, train_dl, valid_dl, orig_dtype,
             if epoch % args.ft_valid_freq == (args.ft_valid_freq - 1):
                 test_loss = utils.calculate_mse_loss(layer, valid_dl, device)
                 if test_loss < best_loss:
-                    glog.info(
+                    logging.info(
                         f'layer {name} @ epoch {epoch} new loss {test_loss} old loss {best_loss} BETTER'
                     )
                     best_loss = test_loss
@@ -73,7 +73,7 @@ def finetune_decoder_layer(layer, name, device, train_dl, valid_dl, orig_dtype,
                     utils.clean()
                     worse_ct = 0
                 else:
-                    glog.info(
+                    logging.info(
                         f'layer {name} @ epoch {epoch} new loss {test_loss} old loss {best_loss} WORSE'
                     )
                     worse_ct += 1
@@ -391,7 +391,7 @@ def finetune_susv_e2e(quant_model, start_dev, devset, orig_dtype, args):
     scaler = torch.cuda.amp.GradScaler(enabled=True)
 
     best_sd = copy.deepcopy(quant_model.state_dict())
-    glog.info(f'initial loss {best_loss}')
+    logging.info(f'initial loss {best_loss}')
     worse_ct = 0
     for epoch in range(args.ft_epochs):
         for bidx, (source, _) in enumerate(train_dl):
@@ -416,14 +416,14 @@ def finetune_susv_e2e(quant_model, start_dev, devset, orig_dtype, args):
             test_loss = utils.calculate_ce_loss_model(quant_model, valid_dl,
                                                       start_dev, in_q, out_q)
             if test_loss < best_loss:
-                glog.info(
+                logging.info(
                     f'epoch {epoch} new loss {test_loss} old loss {best_loss} BETTER'
                 )
                 best_loss = test_loss
                 best_sd = copy.deepcopy(quant_model.state_dict())
                 worse_ct = 0
             else:
-                glog.info(
+                logging.info(
                     f'epoch {epoch} new loss {test_loss} old loss {best_loss} WORSE'
                 )
                 worse_ct += 1

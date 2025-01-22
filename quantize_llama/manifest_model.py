@@ -1,16 +1,8 @@
 import argparse
-import json
-import math
-import os
-import random
-
-import datasets
-import glog
 import torch
-from tqdm import tqdm
 
-from lib.linear import QuantizedLinear
-from lib.utils.unsafe_import import model_from_hf_path
+from ..lib.linear import QuantizedLinear
+from ..lib.utils.unsafe_import import model_from_hf_path
 from transformers import AutoModelForCausalLM
 from operator import attrgetter
 

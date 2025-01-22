@@ -7,7 +7,7 @@ import torch
 from transformers import AutoTokenizer
 from model.cache_utils import StaticCache
 
-from lib.utils.unsafe_import import model_from_hf_path
+from ..lib.utils.unsafe_import import model_from_hf_path
 
 torch.set_grad_enabled(False)
 
@@ -92,7 +92,7 @@ def get_emb(args, kwargs):
     return args[0]
 
 
-from lib.utils import shard_model as sm, clean
+from ..lib.utils import shard_model as sm, clean
 
 def main(hf_path, compile, interactive, max_tokens, top_k):
     device = "cuda"

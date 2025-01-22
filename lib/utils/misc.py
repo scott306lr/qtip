@@ -2,7 +2,7 @@ import gc
 import pdb
 import sys
 
-import glog
+import logging
 import torch
 from tqdm import tqdm
 

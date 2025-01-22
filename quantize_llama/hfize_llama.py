@@ -2,7 +2,7 @@ import argparse
 import os
 import time
 
-import glog
+import logging
 import torch
 from transformers import AutoTokenizer
 
@@ -22,7 +22,7 @@ def main(args):
     assert os.path.exists(args.quantized_path)
     saved_config = torch.load(os.path.join(args.quantized_path, 'config.pt'))
     model_config = saved_config['model_config']
-    glog.info(model_config)
+    logging.info(model_config)
     fused = model_config.quip_params.get('fused', True)
 
     tokenizer = AutoTokenizer.from_pretrained(model_config._name_or_path)
@@ -110,16 +110,16 @@ def main(args):
         else:
             layer.mlp.down_proj = orig_model.model.layers[ii].mlp.down_proj
 
-        glog.info(f'loaded layer {ii}')
+        logging.info(f'loaded layer {ii}')
             
-    glog.info(f'saving model...')
+    logging.info(f'saving model...')
     model.save_pretrained(args.hf_output_path, safe_serialization=True)
 
     del model
 
     model, _ = model_from_hf_path(args.hf_output_path)
 
-    glog.info('successfully loaded hfized model')
+    logging.info('successfully loaded hfized model')
 
 
 if __name__ == '__main__':
