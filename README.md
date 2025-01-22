@@ -1,4 +1,51 @@
-# [QTIP: Quantization with Trellises and Incoherence Processing](https://arxiv.org/abs/2406.11235), NeurIPS 2024 Spotlight
+# Fork of the [QTIP](https://arxiv.org/abs/2406.11235) Codebase
+
+The main purpose of this fork is to run PTQ (Post-Training Quantization) easier, and support the latest packages.
+
+Below are the main changes that will be made on this fork:
+- Update the codebase's package dependencies to the latest version.
+- Refine some of the code to make it more user-friendly.
+
+## How to use
+
+### 1. Setup the codebase by running the following commands:
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Setup the fast-hadamard-transform package by running the following commands:
+```bash
+git clone https://github.com/Dao-AILab/fast-hadamard-transform.git
+cd fast-hadamard-transform
+pip install .
+cd ..
+```
+
+### 3. Compile the kernels by running the following commands:
+```bash
+cd qtip-kernels
+python setup.py install
+cd ..
+```
+
+### 4. Precompute the Hessian matrix by running the following commands:
+Or download from https://huggingface.co/relaxml. 
+The corresponding hessian for the models are named as `relaxml/Hessians-<model_name>-<layer_size>`.
+```bash
+hessian_offline_llama.py # haven't tested this yet
+```
+
+### 5. Run the full pipeline by running the following commands:
+Update the variables in `example.sh` to customize the model_id and save directories.
+Note: Only `quantlut_sym` (HYB) can run successfully. The other modes are not tested yet.
+```bash
+bash example.sh
+```
+
+
+
+
+# Below is the original README.md:
 
 <img src="assets/qtip_overview.png" width="800">
 
