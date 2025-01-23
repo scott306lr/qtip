@@ -8,7 +8,7 @@ from transformers import AutoTokenizer
 
 from lib import codebook, utils
 from lib.utils.unsafe_import import model_from_hf_path
-from model.llama import LlamaForCausalLM
+from model.modeling_llama_qtip import LlamaForCausalLM
 from transformers import LlamaForCausalLM as OrigLlama
 
 torch.set_grad_enabled(False)
@@ -20,7 +20,7 @@ parser.add_argument('--hf_output_path', type=str)
 
 def main(args):
     assert os.path.exists(args.quantized_path)
-    saved_config = torch.load(os.path.join(args.quantized_path, 'config.pt'))
+    saved_config = torch.load(os.path.join(args.quantized_path, 'config.pt'), weights_only=False)
     model_config = saved_config['model_config']
     logging.info(model_config)
     fused = model_config.quip_params.get('fused', True)
@@ -43,7 +43,7 @@ def main(args):
     cpu = torch.device('cpu')
     if os.path.exists(f'{args.quantized_path}/lmhead.pt'):
         lmhead_data = torch.load(f'{args.quantized_path}/lmhead.pt',
-                                 map_location=cpu)
+                                 map_location=cpu, weights_only=True)
         model.lm_head.weight.copy_(lmhead_data['lm_head'].to(
             model.lm_head.weight.dtype))
         model.model.norm.weight.copy_(lmhead_data['norm'].to(
@@ -54,7 +54,7 @@ def main(args):
 
         if os.path.exists(f'{args.quantized_path}/{ii}_layernorm.pt'):
             ln_data = torch.load(f'{args.quantized_path}/{ii}_layernorm.pt',
-                                 map_location=cpu)
+                                 map_location=cpu, weights_only=True)
             layer.input_layernorm.weight.copy_(ln_data['input_layernorm'].to(
                 layer.input_layernorm.weight.dtype))
             layer.post_attention_layernorm.weight.copy_(
@@ -63,49 +63,49 @@ def main(args):
 
         if f'{ii}_q' not in model_config.quip_params['skip_list']:
             saved_layer = torch.load(f'{args.quantized_path}/{ii}_q.pt',
-                                     map_location=cpu)
+                                     map_location=cpu, weights_only=True)
             utils.unpack_quip(layer.self_attn.q_proj, saved_layer)
         else:
             layer.self_attn.q_proj = orig_model.model.layers[ii].self_attn.q_proj
         
         if f'{ii}_k' not in model_config.quip_params['skip_list']:
             saved_layer = torch.load(f'{args.quantized_path}/{ii}_k.pt',
-                                     map_location=cpu)
+                                     map_location=cpu, weights_only=True)
             utils.unpack_quip(layer.self_attn.k_proj, saved_layer)
         else:
             layer.self_attn.k_proj = orig_model.model.layers[ii].self_attn.k_proj
             
         if f'{ii}_v' not in model_config.quip_params['skip_list']:
             saved_layer = torch.load(f'{args.quantized_path}/{ii}_v.pt',
-                                     map_location=cpu)
+                                     map_location=cpu, weights_only=True)
             utils.unpack_quip(layer.self_attn.v_proj, saved_layer)
         else:
             layer.self_attn.v_proj = orig_model.model.layers[ii].self_attn.v_proj
 
         if f'{ii}_o' not in model_config.quip_params['skip_list']:
             saved_layer = torch.load(f'{args.quantized_path}/{ii}_o.pt',
-                                     map_location=cpu)
+                                     map_location=cpu, weights_only=True)
             utils.unpack_quip(layer.self_attn.o_proj, saved_layer)
         else:
             layer.self_attn.o_proj = orig_model.model.layers[ii].self_attn.o_proj
 
         if f'{ii}_up' not in model_config.quip_params['skip_list']:
             saved_layer = torch.load(f'{args.quantized_path}/{ii}_up.pt',
-                                     map_location=cpu)
+                                     map_location=cpu, weights_only=True)
             utils.unpack_quip(layer.mlp.up_proj, saved_layer)
         else:
             layer.mlp.up_proj = orig_model.model.layers[ii].mlp.up_proj
             
         if f'{ii}_gate' not in model_config.quip_params['skip_list']:
             saved_layer = torch.load(f'{args.quantized_path}/{ii}_gate.pt',
-                                     map_location=cpu)
+                                     map_location=cpu, weights_only=True)
             utils.unpack_quip(layer.mlp.gate_proj, saved_layer)
         else:
             layer.mlp.gate_proj = orig_model.model.layers[ii].mlp.gate_proj
                       
         if f'{ii}_down' not in model_config.quip_params['skip_list']:
             saved_layer = torch.load(f'{args.quantized_path}/{ii}_down.pt',
-                                     map_location=cpu)
+                                     map_location=cpu, weights_only=True)
             utils.unpack_quip(layer.mlp.down_proj, saved_layer)
         else:
             layer.mlp.down_proj = orig_model.model.layers[ii].mlp.down_proj
