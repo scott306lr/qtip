@@ -64,7 +64,7 @@ def check_exist(idx, args):
     return True
 
 
-def quantize_llama_decoder(layer, idx, cb, args, device, pre_orig_emb,
+def quantize_llama_decoder(layer, rotary_emb, idx, cb, args, device, pre_orig_emb,
                            orig_emb, model_config, skip_list):
     if check_exist(idx, args):
         return
@@ -87,7 +87,7 @@ def quantize_llama_decoder(layer, idx, cb, args, device, pre_orig_emb,
             attrgetter(thing[0])(layer).weight.requires_grad = False
             print(f'skipping {idx}_{thing[1]}')
         
-    finetune.quantize_finetune_decoder_layer(layer, quant_order, idx, cb, args,
+    finetune.quantize_finetune_decoder_layer(layer, rotary_emb, quant_order, idx, cb, args,
                                              device, pre_orig_emb, orig_emb)
     torch.save(
         {
@@ -159,21 +159,23 @@ def main(args):
         if proc_list[cur_device] is not None:
             proc_list[cur_device][0].join()
             model.model.layers[proc_list[cur_device][1]] = None
-            utils.clean()
             if cur_device == 0:
                 orig_emb_cache[0].copy_(orig_emb_cache[-1])
         if cur_device + 1 < nproc and proc_list[cur_device + 1] is not None:
             proc_list[cur_device + 1][0].join()
-        utils.clean()
         st = time.time()
         position_ids = position_ids.to(cur_device)
         attention_mask = attention_mask.to(cur_device)
         model.model.layers[i].to(cur_device)
+        
+        # rope is precalculated in newer versions of transformers. 
+        model.model.rotary_emb.to(cur_device)
+        position_embeddings = model.model.rotary_emb(position_ids, position_ids)
         for j in range(args.devset_size // args.batch_size):
-            utils.clean()
             orig_emb_cache[cur_device + 1][args.batch_size * j : args.batch_size * (j + 1)] = \
                 model.model.layers[i](
                     orig_emb_cache[cur_device][args.batch_size * j : args.batch_size * (j + 1)].to(cur_device),
+                    position_embeddings=position_embeddings, # required
                     position_ids=position_ids,
                     attention_mask=attention_mask,
                     use_cache=False,
@@ -187,6 +189,7 @@ def main(args):
         proc_list[cur_device] = (mp.Process(target=quantize_llama_decoder,
                                             args=(
                                                 model.model.layers[i],
+                                                model.model.rotary_emb,
                                                 i,
                                                 cb,
                                                 args,

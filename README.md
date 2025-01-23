@@ -8,6 +8,14 @@ Below are the main changes that will be made on this fork:
 
 ## How to use
 
+### 0. Install CUDA Toolkit & Latest PyTorch Version 
+A. Install cuda-toolkit in conda environment if needed:
+```bash
+conda install -c nvidia/label/cuda-12.1.0 cuda-toolkit
+```
+B. Go to https://pytorch.org/get-started/locally/ and install the latest version of PyTorch matching your device.
+
+
 ### 1. Setup the codebase by running the following commands:
 ```bash
 pip install -r requirements.txt
@@ -24,7 +32,7 @@ cd ..
 ### 3. Compile the kernels by running the following commands:
 ```bash
 cd qtip-kernels
-python setup.py install
+pip install .
 cd ..
 ```
 

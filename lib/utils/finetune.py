@@ -13,18 +13,20 @@ def save_linear(module, path):
     torch.save(saved_layer, path)
 
 
-def calculate_mse_loss(layer, dataloader, device):
+def calculate_mse_loss(layer, rotary_emb, dataloader, device):
     layer.eval()
     total_loss = 0
     ct = 0
     position_ids = None
+    position_embeddings = None
     with torch.no_grad():
         for source, target in dataloader:
             if position_ids is None:
-                position_ids = torch.arange(source.shape[1],
-                                            device=device).unsqueeze(0)
+                position_ids = torch.arange(source.shape[1], device=device).unsqueeze(0)
+                position_embeddings = rotary_emb(position_ids, position_ids)
             target = target.to(device, non_blocking=True)
             total_loss += nn.MSELoss()(layer(source.to(device),
+                                             position_embeddings=position_embeddings,
                                              position_ids=position_ids)[0],
                                        target)
             ct += 1

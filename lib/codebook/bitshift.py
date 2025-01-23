@@ -158,7 +158,7 @@ class bitshift_codebook(nn.Module):
                                 tlut.std(unbiased=False)) * 0.9682458365518543
                         torch.save(tlut, fname)
                     else:
-                        tlut = torch.load(fname)
+                        tlut = torch.load(fname, weights_only=True)
                 else:
                     raise Exception
                 self.register_buffer('tlut', tlut)

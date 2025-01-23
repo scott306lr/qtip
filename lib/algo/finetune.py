@@ -26,24 +26,26 @@ def use_tf32():
     torch.set_float32_matmul_precision(fp32_matmul_precision)
 
 
-def finetune_decoder_layer(layer, name, device, train_dl, valid_dl, orig_dtype,
+def finetune_decoder_layer(layer, name, rotary_emb, device, train_dl, valid_dl, orig_dtype,
                            args):
     with use_tf32():
         layer = layer.to(device)
 
         source = next(iter(train_dl))[0]
         position_ids = torch.arange(source.shape[1], device=device).unsqueeze(0)
+        position_embeddings = rotary_emb(position_ids, position_ids)
         # manifest tensor parallel attributes in layer
         output = layer(source.to(device),
+                       position_embeddings=position_embeddings,
                        position_ids=position_ids)[0]
         
         best_sd = {k: v.cpu() for k, v in layer.state_dict().items()}
         utils.clean()
 
         optim = torch.optim.Adam(layer.parameters(), lr=args.ft_lr)
-        best_loss = utils.calculate_mse_loss(layer, valid_dl, device)
+        best_loss = utils.calculate_mse_loss(layer, rotary_emb, valid_dl, device)
         logging.info(f'layer {name} initial loss {best_loss}')
-        scaler = torch.cuda.amp.GradScaler(enabled=(orig_dtype==torch.float16))
+        scaler = torch.amp.GradScaler(device=device, enabled=(orig_dtype==torch.float16))
         worse_ct = 0
 
         for epoch in range(args.ft_epochs):
@@ -63,7 +65,7 @@ def finetune_decoder_layer(layer, name, device, train_dl, valid_dl, orig_dtype,
                     optim.zero_grad()
 
             if epoch % args.ft_valid_freq == (args.ft_valid_freq - 1):
-                test_loss = utils.calculate_mse_loss(layer, valid_dl, device)
+                test_loss = utils.calculate_mse_loss(layer, rotary_emb, valid_dl, device)
                 if test_loss < best_loss:
                     logging.info(
                         f'layer {name} @ epoch {epoch} new loss {test_loss} old loss {best_loss} BETTER'
@@ -87,7 +89,7 @@ def finetune_decoder_layer(layer, name, device, train_dl, valid_dl, orig_dtype,
     utils.clean()
 
 
-def quantize_finetune_decoder_layer(mixed_layer, quant_order, idx, cb, args,
+def quantize_finetune_decoder_layer(mixed_layer, rotary_emb, quant_order, idx, cb, args,
                                     device, pre_orig_emb, orig_emb):
     torch.manual_seed(idx)
     torch.set_num_threads(args.num_cpu_threads)
@@ -107,7 +109,7 @@ def quantize_finetune_decoder_layer(mixed_layer, quant_order, idx, cb, args,
 
     for quant_i, (linear_attr, name, in_hess_name, out_hess_name,
                   rcp) in enumerate(quant_order):
-        utils.clean()
+        # utils.clean()
         cb = cb.to(device).to(orig_dtype)
         orig_linear = attrgetter(linear_attr)(mixed_layer)
         W = orig_linear.weight.to(dtype_)
@@ -117,7 +119,7 @@ def quantize_finetune_decoder_layer(mixed_layer, quant_order, idx, cb, args,
         SV = (torch.randn(m, device=device).sign() + 1e-5).sign().to(dtype_)
 
         in_hess_path = f'{args.in_hess_path}/{idx}_{in_hess_name}.pt'
-        H_data = torch.load(in_hess_path, map_location=torch.device('cpu'))
+        H_data = torch.load(in_hess_path, map_location=torch.device('cpu'), weights_only=True)
         HR = utils.flat_to_sym(H_data['flatH'], H_data['n'])
         if 'mu' in H_data:
             mu = H_data['mu']
@@ -310,17 +312,17 @@ def quantize_finetune_decoder_layer(mixed_layer, quant_order, idx, cb, args,
             q_linear)
 
         with torch.enable_grad():
-            finetune_decoder_layer(mixed_layer, f'{idx}_{name}', device,
+            finetune_decoder_layer(mixed_layer, f'{idx}_{name}', rotary_emb, device,
                                    train_dl, valid_dl, orig_dtype, args)
 
         cb = cb.cpu()
-        utils.clean()
+        # utils.clean()
 
     for quant_i, (linear_attr, name, in_hess_name, out_hess_name,
                   rcp) in enumerate(quant_order):
         quant_linear = attrgetter(linear_attr)(mixed_layer)
         save_path = f'{args.save_path}/{idx}_{name}.pt'
-        data = torch.load(save_path)
+        data = torch.load(save_path, weights_only=True)
         if rcp == 'row':
             data['SU'] = (
                 ((quant_linear.SU.data).reshape(args.tp_rank, -1) /
